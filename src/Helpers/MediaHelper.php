@@ -153,7 +153,7 @@ class MediaHelper
     public static function getMediaConfig()
     {
         if (file_exists(config_path('media.php'))) {
-            $media = require config_path('media.php');
+            $media = config('media');
         } else {
             $media = require __DIR__. '/../Configs/media.php';
         }
