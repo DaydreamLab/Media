@@ -27,7 +27,7 @@ class MediaUploadPost extends AdminRequest
         $media_config = MediaHelper::getMediaConfig();
         return [
             'files'     => 'required|array',
-            'files.*'   => 'nullable|max:40960',
+            'files.*'   => 'nullable|max:'.$media_config['media_upload_limit'],
             'dir'       => 'required|string',
         ];
     }
