@@ -14,7 +14,23 @@ class MediaFrontService extends MediaService
 {
     protected $type = 'MediaFront';
 
-    public function __construct(MediaFrontRepository $repo, $userMerchantId = '')
+    protected $media_storage = null;
+
+    protected $thumb_storage = null;
+
+    protected $media_storage_type = 'media-public';
+
+    protected $thumb_storage_type = 'media-thumb';
+
+    protected $media_path = null;
+
+    protected $media_link_base = '/storage/media';
+
+    protected $thumb_path = null;
+
+    protected $userMerchantID = null;
+
+    public function __construct(MediaFrontRepository $repo, $userMerchantID = '')
     {
         $this->repo = $repo;
 
@@ -23,20 +39,22 @@ class MediaFrontService extends MediaService
             $this->thumb_storage_type = 'media-thumb-merchant';
             $this->media_link_base .= '/merchant';
 
-            $user = Auth::guard('api')->user();
-            if(!$user) {
-                $this->throwResponse('UserUnauthorized');
-            }
-
-            if ($merchant = $user->merchants()->first()){
-                $this->userMerchantID = $merchant->id;
-            } else if ($userMerchantId !== '') {
-                $this->userMerchantID = $userMerchantId;
-            } else {
-                if (!$user->isSuperUser())
-                {
-                    $this->throwResponse('MediaThisAdminUserNotHaveMerchant');
+            if ($userMerchantID == '') {
+                $user = Auth::guard('api')->user();
+                if(!$user) {
+                    $this->throwResponse('UserUnauthorized');
                 }
+
+                if ($merchant = $user->merchants()->first()){
+                    $this->userMerchantID = $merchant->id;
+                } else {
+                    if (!$user->isSuperUser())
+                    {
+                        $this->throwResponse('MediaThisAdminUserNotHaveMerchant');
+                    }
+                }
+            } else {
+                $this->userMerchantID = $userMerchantID;
             }
         }
 
@@ -61,13 +79,11 @@ class MediaFrontService extends MediaService
 
     /**
      * 將用戶line發送的檔案上傳保存
-     *
-     * @param $resource
-     * @param string $type | mime
-     * @param string $dir
+     * @param $resource | Upload file from LINE
+     * @param string $type mime type ex:image/jpeg
      * @return string
      */
-    public function uploadFromLineUser(resource $resource, string $mime, string $dir = '')
+    public function uploadFromLineUser($resource, string $mime)
     {
         $extension = substr($mime, strpos($mime, '/') + 1);
         $filename = Str::random(36) . '.' . $extension;
@@ -75,10 +91,9 @@ class MediaFrontService extends MediaService
         \Intervention\Image\Facades\Image::make($resource->getRawBody())->save($this->media_path . $filename);
         \Intervention\Image\Facades\Image::make($resource->getRawBody())->fit(200)->save($this->thumb_path .$filename);
 
-        $path = substr($this->media_path, strpos($this->media_path, '/storage')) . '/' . $filename;
-        $type = substr($mime, 0, strpos($mime, '/'));
-
         // 回傳特殊自定義格式觸發linebot事件
+        $type = substr($mime, 0, strpos($mime, '/'));
+        $path = $this->media_link_base . '/' . $this->userMerchantID . '/' . $filename;
         $userSendText = '[TemplateMsg][File]_' . $type . '_' . $path;
 
         return $userSendText;
